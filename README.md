@@ -99,6 +99,20 @@ Profiles are stored as JSON files in the **VenvRoot** directory (`$env:USERPROFI
 
 ### `New-Pwshvenv`
 
+Creates a new Python virtual environment and saves its configuration profile.
+
+### `Set-PwshvenvEnvironmentVariable`
+
+Adds or updates an environment variable in an existing `pwshvenv` profile.
+
+```powershell
+# Add a new variable
+Set-PwshvenvEnvironmentVariable -Name 'myapp' -Key 'API_KEY' -Value 'secret123'
+
+# Update an existing variable
+Set-PwshvenvEnvironmentVariable -Name 'myapp' -Key 'DEBUG' -Value 'true'
+```
+
 Creates a new virtual environment and saves its profile.
 
 ```powershell

@@ -11,6 +11,16 @@
 # Script module or binary module file associated with this manifest.
 RootModule = 'pwshVenv.psm1'
 
+# Functions to export from this module
+FunctionsToExport = @(
+    'New-Pwshvenv',
+    'Update-Pwshvenv',
+    'Enter-Pwshvenv',
+    'Exit-Pwshvenv',
+    'Get-Pwshvenv',
+    'Set-PwshvenvEnvironmentVariable'
+)
+
 # Version number of this module.
 ModuleVersion = '0.1.0'
 
