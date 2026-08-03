@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Shared helpers for the pwsh-venv Pester test suite.
+    Shared helpers for the pwshVenv Pester test suite.
 .DESCRIPTION
     Provides factory functions for creating temporary directories and profile JSON files
     used across tests. All helpers write to a temp path under $TestDrive so Pester cleans

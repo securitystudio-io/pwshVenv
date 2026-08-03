@@ -1,4 +1,4 @@
-# pwsh-venv
+# pwshVenv
 
 A PowerShell module that wraps Python's `venv` with profile-based configuration. Store named virtual environment settings as JSON files and manage them with idiomatic PowerShell cmdlets.
 
@@ -28,14 +28,14 @@ A PowerShell module that wraps Python's `venv` with profile-based configuration.
 ### From source
 
 ```powershell
-git clone https://github.com/securitystudio-io/pwsh-venv.git
-Import-Module .\pwsh-venv\pwsh-venv.psd1
+git clone https://github.com/securitystudio-io/pwshVenv.git
+Import-Module .\pwshVenv\pwshVenv.psd1
 ```
 
 ### From PowerShell Gallery *(coming soon)*
 
 ```powershell
-Install-Module -Name pwsh-venv
+Install-Module -Name pwshVenv
 ```
 
 ---

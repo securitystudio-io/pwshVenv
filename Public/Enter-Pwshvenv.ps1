@@ -61,7 +61,7 @@ function Enter-Pwshvenv {
     )
 
     if ($script:PwshvenvActive) {
-        Write-Warning "A pwsh-venv environment is already active. Run Exit-Pwshvenv first."
+        Write-Warning "A pwshVenv environment is already active. Run Exit-Pwshvenv first."
         return
     }
 

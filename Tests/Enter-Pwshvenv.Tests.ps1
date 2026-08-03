@@ -41,7 +41,7 @@ Describe 'Enter-Pwshvenv' {
             { Enter-Pwshvenv -Name 'myapp' -VenvRoot $root } | Should -Throw '*Activate.ps1 not found*'
         }
 
-        It 'warns and returns when a pwsh-venv environment is already active' {
+        It 'warns and returns when a pwshVenv environment is already active' {
             $script:PwshvenvActive = $true
             New-FakeVenv -Root $root -Name 'myapp' -EnvVars @{}
             $warnings = Enter-Pwshvenv -Name 'myapp' -VenvRoot $root 3>&1 |

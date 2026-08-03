@@ -10,7 +10,7 @@ function Exit-Pwshvenv {
           2. Restores any environment variables that were set by Enter-Pwshvenv to the values
              they held before activation.
 
-        If no pwsh-venv environment is currently active the command is a no-op and emits a
+        If no pwshVenv environment is currently active the command is a no-op and emits a
         verbose message rather than an error.
     .EXAMPLE
         Exit-Pwshvenv
@@ -25,7 +25,7 @@ function Exit-Pwshvenv {
     param()
 
     if (-not $script:PwshvenvActive) {
-        Write-Verbose 'No pwsh-venv environment is currently active.'
+        Write-Verbose 'No pwshVenv environment is currently active.'
         return
     }
 
