@@ -8,10 +8,11 @@ A PowerShell module that wraps Python's `venv` with profile-based configuration.
 
 - **Named profiles** — store venv configuration as JSON files for repeatable, shareable environments
 - **Template inheritance** — seed a new profile from an existing one and override individual fields
+- **Searchable selection** — quickly find and activate venvs interactively with `Select-Pwshvenv`
 - **Environment variable management** — define per-venv `$env:` variables applied on activation and restored on exit
 - **Post-activate scripts** — run PowerShell scripts automatically when a venv is entered
 - **Selective initialization** — skip Python activation, PowerShell init, or both via profile flags or runtime switches
-- **Safe session state** — `Exit-Pwshvenv` restores all env vars to their pre-activation values
+- **Safe session state** — `Exit-Pwshvenv` restores all env vars and working directory to their pre-activation values
 
 ---
 
@@ -77,6 +78,7 @@ Profiles are stored as JSON files in the **VenvRoot** directory (`$env:USERPROFI
   "postActivateScripts": [
     "C:\\Projects\\myapp\\scripts\\dev-setup.ps1"
   ],
+  "setLocation": "C:\\Projects\\myapp",
   "skipPythonActivation": false,
   "skipPowershellInit": false
 }
@@ -90,8 +92,9 @@ Profiles are stored as JSON files in the **VenvRoot** directory (`$env:USERPROFI
 | `venvLocation` | string | `null` | Custom path for the venv directory. Defaults to `<VenvRoot>\<name>`. |
 | `environmentVariables` | object | `{}` | Key-value pairs set in the process environment on activation. |
 | `postActivateScripts` | array | `[]` | `.ps1` scripts dot-sourced after activation. |
+| `setLocation` | string | `null` | Directory path navigated to via `Set-Location` during `Enter-Pwshvenv`. Restored on `Exit-Pwshvenv`. |
 | `skipPythonActivation` | bool | `false` | When `true`, `Activate.ps1` is not run during `Enter-Pwshvenv`. |
-| `skipPowershellInit` | bool | `false` | When `true`, env vars and post-activate scripts are skipped during `Enter-Pwshvenv`. |
+| `skipPowershellInit` | bool | `false` | When `true`, env vars, directory navigation, and post-activate scripts are skipped during `Enter-Pwshvenv`. |
 
 ---
 
@@ -101,20 +104,6 @@ Profiles are stored as JSON files in the **VenvRoot** directory (`$env:USERPROFI
 
 Creates a new Python virtual environment and saves its configuration profile.
 
-### `Set-PwshvenvEnvironmentVariable`
-
-Adds or updates an environment variable in an existing `pwshvenv` profile.
-
-```powershell
-# Add a new variable
-Set-PwshvenvEnvironmentVariable -Name 'myapp' -Key 'API_KEY' -Value 'secret123'
-
-# Update an existing variable
-Set-PwshvenvEnvironmentVariable -Name 'myapp' -Key 'DEBUG' -Value 'true'
-```
-
-Creates a new virtual environment and saves its profile.
-
 ```powershell
 New-Pwshvenv -Name <string>
              [-PythonPath <string>]
@@ -122,6 +111,7 @@ New-Pwshvenv -Name <string>
              [-VenvLocation <string>]
              [-EnvironmentVariables <hashtable>]
              [-PostActivateScripts <string[]>]
+             [-SetLocation <string>]
              [-SkipPythonActivation]
              [-SkipPowershellInit]
              [-TemplatePath <string>]
@@ -139,7 +129,8 @@ New-Pwshvenv -Name myapp `
              -PythonPath python3.12 `
              -RequirementsFile C:\Projects\myapp\requirements.txt `
              -EnvironmentVariables @{ DEBUG = 'true'; API_KEY = 'dev-key' } `
-             -PostActivateScripts @('C:\Projects\myapp\scripts\init.ps1')
+             -PostActivateScripts @('C:\Projects\myapp\scripts\init.ps1') `
+             -SetLocation C:\Projects\myapp
 
 # From a template — inherits all fields and overrides PythonPath
 New-Pwshvenv -Name myapp-dev -TemplatePath ~\.venv\myapp.json -PythonPath python3.11
@@ -149,12 +140,27 @@ New-Pwshvenv -Name myapp-dev -TemplatePath ~\.venv\myapp.json -PythonPath python
 
 ---
 
+### `Set-PwshvenvEnvironmentVariable`
+
+Adds or updates an environment variable in an existing `pwshvenv` profile.
+
+```powershell
+# Add a new variable
+Set-PwshvenvEnvironmentVariable -Name 'myapp' -Key 'API_KEY' -Value 'secret123'
+
+# Update an existing variable
+Set-PwshvenvEnvironmentVariable -Name 'myapp' -Key 'DEBUG' -Value 'true'
+```
+
+---
+
 ### `Get-Pwshvenv`
 
-Lists venv profiles stored in the VenvRoot.
+Lists venv profiles stored in the VenvRoot, or returns the currently active virtual environment.
 
 ```powershell
 Get-Pwshvenv [-Name <string>]
+             [-Active]
              [-VenvRoot <string>]
 ```
 
@@ -167,11 +173,85 @@ Get-Pwshvenv
 # Get a specific profile
 Get-Pwshvenv -Name myapp
 
+# Get currently active virtual environment
+Get-Pwshvenv -Active
+
 # Pipe to see the resolved venv path
 Get-Pwshvenv | Select-Object Name, VenvLocation
 ```
 
-**Output properties:** `Name`, `PythonPath`, `RequirementsFile`, `VenvLocation`, `EnvironmentVariables`, `PostActivateScripts`, `SkipPythonActivation`, `SkipPowershellInit`, `ProfilePath`
+**Output properties:** `Name`, `PythonPath`, `RequirementsFile`, `VenvLocation`, `EnvironmentVariables`, `PostActivateScripts`, `SetLocation`, `SkipPythonActivation`, `SkipPowershellInit`, `ProfilePath`
+
+---
+
+### `Export-PwshvenvRequirements`
+
+Exports installed packages from a virtual environment via `pip freeze`.
+
+```powershell
+Export-PwshvenvRequirements [[-Name] <string>]
+                            [-Path <string>]
+                            [-SaveToProfile]
+                            [-PassThru]
+                            [-VenvRoot <string>]
+```
+
+**Examples**
+
+```powershell
+# Export from active venv and save to profile's requirementsFile
+Export-PwshvenvRequirements -SaveToProfile
+
+# Export from 'myapp' to a specific file path
+Export-PwshvenvRequirements -Name myapp -Path .\requirements.txt -SaveToProfile
+```
+
+---
+
+### `Install-PwshvenvPackage`
+
+Installs one or more Python packages into a virtual environment using `pip install` without requiring manual environment activation.
+
+```powershell
+Install-PwshvenvPackage [-Package] <string[]>
+                        [[-Name] <string>]
+                        [-Upgrade]
+                        [-AdditionalArguments <string[]>]
+                        [-VenvRoot <string>]
+```
+
+**Examples**
+
+```powershell
+# Install packages into 'myapp'
+Install-PwshvenvPackage -Name myapp -Package 'requests', 'fastapi'
+
+# Upgrade a package in the currently active venv
+Install-PwshvenvPackage -Package 'pytest' -Upgrade
+```
+
+---
+
+### `Select-Pwshvenv`
+
+Displays an interactive, searchable list of available virtual environments to choose from and activates the selected venv.
+
+```powershell
+Select-Pwshvenv [-VenvRoot <string>]
+                [-PassThru]
+                [-SkipPythonActivation]
+                [-SkipPowershellInit]
+```
+
+**Examples**
+
+```powershell
+# Interactive selection and activation
+Select-Pwshvenv
+
+# Select and return the profile object
+$profile = Select-Pwshvenv -PassThru
+```
 
 ---
 
@@ -190,7 +270,8 @@ Enter-Pwshvenv -Name <string>
 
 1. Dot-sources `<VenvLocation>\Scripts\Activate.ps1` *(unless `skipPythonActivation` is set)*
 2. Applies `environmentVariables` from the profile to the current process *(unless `skipPowershellInit` is set)*
-3. Dot-sources each `postActivateScripts` entry *(unless `skipPowershellInit` is set)*
+3. Navigates to `setLocation` via `Set-Location` *(unless `skipPowershellInit` is set)*
+4. Dot-sources each `postActivateScripts` entry *(unless `skipPowershellInit` is set)*
 
 **Examples**
 
@@ -221,6 +302,108 @@ Exit-Pwshvenv
 
 1. Calls `deactivate` *(only if Python activation ran during `Enter-Pwshvenv`)*
 2. Restores every environment variable to the value it held before activation
+3. Restores the working directory to the location held before activation if `setLocation` was applied
+
+---
+
+### `Set-Pwshvenv`
+
+Updates configuration properties on an existing virtual environment profile.
+
+```powershell
+Set-Pwshvenv -Name <string>
+             [-PythonPath <string>]
+             [-RequirementsFile <string>]
+             [-VenvLocation <string>]
+             [-SetLocation <string>]
+             [-EnvironmentVariables <hashtable>]
+             [-PostActivateScripts <string[]>]
+             [-SkipPythonActivation <bool>]
+             [-SkipPowershellInit <bool>]
+             [-ClearSetLocation]
+             [-ClearRequirementsFile]
+             [-PassThru]
+             [-VenvRoot <string>]
+```
+
+**Examples**
+
+```powershell
+# Update the start location
+Set-Pwshvenv -Name myapp -SetLocation C:\Projects\myapp
+
+# Clear requirements file from profile
+Set-Pwshvenv -Name myapp -ClearRequirementsFile
+```
+
+---
+
+### `Set-PwshvenvEnvironmentVariable`
+
+Adds or updates an environment variable in an existing `pwshvenv` profile.
+
+```powershell
+# Add a new variable
+Set-PwshvenvEnvironmentVariable -Name 'myapp' -Key 'API_KEY' -Value 'secret123'
+
+# Update an existing variable
+Set-PwshvenvEnvironmentVariable -Name 'myapp' -Key 'DEBUG' -Value 'true'
+```
+
+---
+
+### `Copy-Pwshvenv`
+
+Duplicates an existing profile configuration to a new profile name, with optional property overrides.
+
+```powershell
+Copy-Pwshvenv -Name <string>
+              -Destination <string>
+              [-PythonPath <string>]
+              [-RequirementsFile <string>]
+              [-SetLocation <string>]
+              [-CreateVenv]
+              [-Force]
+              [-PassThru]
+              [-VenvRoot <string>]
+```
+
+**Examples**
+
+```powershell
+# Clone a profile JSON
+Copy-Pwshvenv -Name myapp -Destination myapp-dev
+
+# Clone and immediately create the virtual environment on disk
+Copy-Pwshvenv -Name myapp -Destination myapp-py311 -PythonPath python3.11 -CreateVenv
+```
+
+---
+
+### `Remove-Pwshvenv`
+
+Deletes a virtual environment profile JSON file and/or its virtual environment directory.
+
+```powershell
+Remove-Pwshvenv -Name <string>
+                [-KeepVenv]
+                [-KeepProfile]
+                [-Force]
+                [-VenvRoot <string>]
+```
+
+**Examples**
+
+```powershell
+# Delete both profile and venv directory
+Remove-Pwshvenv -Name myapp
+
+# Delete profile only (keep virtual environment folder)
+Remove-Pwshvenv -Name myapp -KeepVenv
+
+# Pipeline removal
+Get-Pwshvenv | Where-Object Name -like 'temp*' | Remove-Pwshvenv
+```
 
 ---
 
@@ -245,6 +428,25 @@ Update-Pwshvenv -Name myapp
 ```
 
 > Deactivate the venv with `Exit-Pwshvenv` before running this command to avoid file-lock errors on Windows.
+
+---
+
+## Aliases
+
+For shell speed and convenience, `pwshVenv` includes the following built-in aliases:
+
+| Alias | Target Cmdlet | Description |
+|---|---|---|
+| `workon` | `Enter-Pwshvenv` | Quick-activate a named virtual environment |
+| `deactivate-venv` | `Exit-Pwshvenv` | Deactivate the currently active virtual environment |
+| `venvs` | `Select-Pwshvenv` | Interactive terminal selector with live search |
+
+---
+
+## Tab Completion & Cross-Platform Support
+
+* **Dynamic Tab Completion**: Pressing `Tab` after `-Name` on any cmdlet (`Enter-Pwshvenv -Name <Tab>`, `Update-Pwshvenv`, `Remove-Pwshvenv`, etc.) automatically autocompletes available virtual environment profile names.
+* **Cross-Platform Compatibility**: Virtual environment binary directory structures are automatically detected across Windows (`Scripts\Activate.ps1`, `pip.exe`) and Linux/macOS (`bin/activate.ps1`, `bin/pip`).
 
 ---
 

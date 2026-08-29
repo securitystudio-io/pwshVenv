@@ -60,7 +60,7 @@ function Update-Pwshvenv {
         if (-not (Test-Path -LiteralPath $venvProfile.RequirementsFile -PathType Leaf)) {
             Write-Warning "Requirements file not found, skipping pip install: $($venvProfile.RequirementsFile)"
         } else {
-            $pip = Join-Path $venvProfile.VenvLocation 'Scripts' 'pip.exe'
+            $pip = Get-VenvExecutablePath -VenvLocation $venvProfile.VenvLocation -ExecutableName 'pip'
             if ($PSCmdlet.ShouldProcess($venvProfile.RequirementsFile, 'pip install -r')) {
                 Write-Verbose "Installing requirements: $pip install -r $($venvProfile.RequirementsFile)"
                 & $pip install -r $venvProfile.RequirementsFile

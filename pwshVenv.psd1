@@ -13,12 +13,18 @@ RootModule = 'pwshVenv.psm1'
 
 # Functions to export from this module
 FunctionsToExport = @(
-    'New-Pwshvenv',
-    'Update-Pwshvenv',
+    'Copy-Pwshvenv',
     'Enter-Pwshvenv',
     'Exit-Pwshvenv',
+    'Export-PwshvenvRequirements',
     'Get-Pwshvenv',
-    'Set-PwshvenvEnvironmentVariable'
+    'Install-PwshvenvPackage',
+    'New-Pwshvenv',
+    'Remove-Pwshvenv',
+    'Select-Pwshvenv',
+    'Set-Pwshvenv',
+    'Set-PwshvenvEnvironmentVariable',
+    'Update-Pwshvenv'
 )
 
 # Version number of this module.
@@ -81,7 +87,7 @@ PowerShellVersion = '7.0'
 # riablesToExport = '*'
 
 # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-AliasesToExport = '*'
+AliasesToExport = @('workon', 'deactivate-venv', 'venvs')
 
 # DSC resources to export from this module
 # DscResourcesToExport = @()

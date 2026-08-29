@@ -31,12 +31,15 @@ function New-Pwshvenv {
     .PARAMETER PostActivateScripts
         Array of paths to PowerShell scripts (.ps1) that are dot-sourced after the venv is
         activated via Enter-Pwshvenv.
+    .PARAMETER SetLocation
+        Directory path to automatically navigate to via Set-Location when activating the venv
+        via Enter-Pwshvenv. Restored to the previous location on Exit-Pwshvenv.
     .PARAMETER SkipPythonActivation
         When set in the profile, Enter-Pwshvenv will not dot-source Activate.ps1. Useful when
         managing env vars and scripts without actually activating a Python interpreter.
     .PARAMETER SkipPowershellInit
-        When set in the profile, Enter-Pwshvenv will not apply EnvironmentVariables or run
-        PostActivateScripts. Useful when only the Python venv itself is needed.
+        When set in the profile, Enter-Pwshvenv will not apply EnvironmentVariables, SetLocation,
+        or run PostActivateScripts. Useful when only the Python venv itself is needed.
     .PARAMETER TemplatePath
         Path to an existing profile JSON file to use as the base configuration. Explicit
         parameters override any values loaded from the template.
@@ -49,6 +52,9 @@ function New-Pwshvenv {
     .EXAMPLE
         New-Pwshvenv -Name myapp -PythonPath python3.12 -RequirementsFile .\requirements.txt
         Creates a venv with Python 3.12 and installs packages from requirements.txt.
+    .EXAMPLE
+        New-Pwshvenv -Name myapp -SetLocation C:\Projects\myapp
+        Creates a profile and venv that changes the session directory to C:\Projects\myapp on entry.
     .EXAMPLE
         New-Pwshvenv -Name myapp -TemplatePath ~\.venv\baseapp.json
         Creates a new profile using an existing template as the base configuration.
@@ -75,6 +81,8 @@ function New-Pwshvenv {
 
         [string[]] $PostActivateScripts,
 
+        [string] $SetLocation,
+
         [switch] $SkipPythonActivation,
 
         [switch] $SkipPowershellInit,
@@ -94,6 +102,7 @@ function New-Pwshvenv {
         venvLocation         = $null
         environmentVariables = @{}
         postActivateScripts  = @()
+        setLocation          = $null
         skipPythonActivation = $false
         skipPowershellInit   = $false
     }
@@ -108,6 +117,7 @@ function New-Pwshvenv {
         if ($template.venvLocation)         { $config.venvLocation         = $template.venvLocation }
         if ($template.environmentVariables) { $config.environmentVariables = $template.environmentVariables }
         if ($template.postActivateScripts)  { $config.postActivateScripts  = $template.postActivateScripts }
+        if ($template.setLocation)          { $config.setLocation          = $template.setLocation }
         if ($template.PSObject.Properties['skipPythonActivation']) { $config.skipPythonActivation = [bool]$template.skipPythonActivation }
         if ($template.PSObject.Properties['skipPowershellInit'])   { $config.skipPowershellInit   = [bool]$template.skipPowershellInit }
     }
@@ -118,6 +128,7 @@ function New-Pwshvenv {
     if ($PSBoundParameters.ContainsKey('VenvLocation'))         { $config.venvLocation         = $VenvLocation }
     if ($PSBoundParameters.ContainsKey('EnvironmentVariables')) { $config.environmentVariables = $EnvironmentVariables }
     if ($PSBoundParameters.ContainsKey('PostActivateScripts'))  { $config.postActivateScripts  = $PostActivateScripts }
+    if ($PSBoundParameters.ContainsKey('SetLocation'))          { $config.setLocation          = $SetLocation }
     if ($PSBoundParameters.ContainsKey('SkipPythonActivation')) { $config.skipPythonActivation = $SkipPythonActivation.IsPresent }
     if ($PSBoundParameters.ContainsKey('SkipPowershellInit'))   { $config.skipPowershellInit   = $SkipPowershellInit.IsPresent }
 
@@ -141,7 +152,7 @@ function New-Pwshvenv {
         if (-not (Test-Path -LiteralPath $config.requirementsFile -PathType Leaf)) {
             Write-Warning "Requirements file not found, skipping pip install: $($config.requirementsFile)"
         } else {
-            $pip = Join-Path $resolvedVenvLoc 'Scripts' 'pip.exe'
+            $pip = Get-VenvExecutablePath -VenvLocation $resolvedVenvLoc -ExecutableName 'pip'
             if ($PSCmdlet.ShouldProcess($config.requirementsFile, 'pip install -r')) {
                 Write-Verbose "Installing requirements: $pip install -r $($config.requirementsFile)"
                 & $pip install -r $config.requirementsFile

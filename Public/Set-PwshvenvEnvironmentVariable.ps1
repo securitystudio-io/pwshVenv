@@ -61,6 +61,7 @@ function Set-PwshvenvEnvironmentVariable {
             venvLocation         = if ($profile.VenvLocation -eq (Join-Path $root $profile.Name)) { $null } else { $profile.VenvLocation }
             environmentVariables = $envVars
             postActivateScripts  = $profile.PostActivateScripts
+            setLocation          = $profile.SetLocation
             skipPythonActivation = $profile.SkipPythonActivation
             skipPowershellInit   = $profile.SkipPowershellInit
         }

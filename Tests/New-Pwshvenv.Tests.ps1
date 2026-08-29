@@ -1,6 +1,11 @@
 BeforeAll {
+    function python { }
+    function python3.10 { }
+    function python3.12 { }
+    function pip { }
     . "$PSScriptRoot\..\Private\Resolve-VenvRoot.ps1"
     . "$PSScriptRoot\..\Private\Get-VenvProfile.ps1"
+    . "$PSScriptRoot\..\Private\Get-VenvExecutablePath.ps1"
     . "$PSScriptRoot\..\Private\Invoke-PostActivateScripts.ps1"
     . "$PSScriptRoot\..\Public\New-Pwshvenv.ps1"
     . "$PSScriptRoot\TestHelpers.ps1"
@@ -9,8 +14,10 @@ BeforeAll {
 Describe 'New-Pwshvenv' {
     BeforeEach {
         $root = New-TempVenvRoot
-        # Stub out python so we don't need a real interpreter.
+        # Stub out python commands so we don't need real interpreters.
         Mock python { $global:LASTEXITCODE = 0 }
+        Mock python3.10 { $global:LASTEXITCODE = 0 }
+        Mock python3.12 { $global:LASTEXITCODE = 0 }
     }
 
     Context 'profile JSON creation' {
@@ -36,21 +43,29 @@ Describe 'New-Pwshvenv' {
             $raw = Get-Content (Join-Path $root 'myapp.json') -Raw | ConvertFrom-Json
             $raw.environmentVariables.DEBUG | Should -Be '1'
         }
+
+        It 'persists SetLocation in the profile' {
+            New-Pwshvenv -Name 'myapp' -SetLocation 'C:\Projects\myapp' -VenvRoot $root -WhatIf:$false
+            $raw = Get-Content (Join-Path $root 'myapp.json') -Raw | ConvertFrom-Json
+            $raw.setLocation | Should -Be 'C:\Projects\myapp'
+        }
     }
 
     Context 'template loading' {
         It 'uses template values when no explicit overrides are given' {
-            $templatePath = New-ProfileJson -Root $root -Name 'base' -PythonPath 'python3.10'
+            $templatePath = New-ProfileJson -Root $root -Name 'base' -PythonPath 'python3.10' -SetLocation 'C:\Projects\base'
             New-Pwshvenv -Name 'child' -TemplatePath $templatePath -VenvRoot $root -WhatIf:$false
             $raw = Get-Content (Join-Path $root 'child.json') -Raw | ConvertFrom-Json
             $raw.pythonPath | Should -Be 'python3.10'
+            $raw.setLocation | Should -Be 'C:\Projects\base'
         }
 
         It 'explicit parameter overrides the template value' {
-            $templatePath = New-ProfileJson -Root $root -Name 'base' -PythonPath 'python3.10'
-            New-Pwshvenv -Name 'child' -TemplatePath $templatePath -PythonPath 'python3.12' -VenvRoot $root -WhatIf:$false
+            $templatePath = New-ProfileJson -Root $root -Name 'base' -PythonPath 'python3.10' -SetLocation 'C:\Projects\base'
+            New-Pwshvenv -Name 'child' -TemplatePath $templatePath -PythonPath 'python3.12' -SetLocation 'C:\Projects\child' -VenvRoot $root -WhatIf:$false
             $raw = Get-Content (Join-Path $root 'child.json') -Raw | ConvertFrom-Json
             $raw.pythonPath | Should -Be 'python3.12'
+            $raw.setLocation | Should -Be 'C:\Projects\child'
         }
 
         It 'throws when TemplatePath does not exist' {
@@ -61,7 +76,7 @@ Describe 'New-Pwshvenv' {
 
     Context 'requirements file' {
         It 'skips pip install when no requirements file is specified' {
-            Mock pip { } -ModuleName '*'
+            Mock pip { $global:LASTEXITCODE = 0 }
             New-Pwshvenv -Name 'myapp' -VenvRoot $root -WhatIf:$false
             # pip should not have been called; verify no call is sufficient if pip isn't mocked globally
             # We test this by confirming no error is raised and the profile has no requirementsFile.

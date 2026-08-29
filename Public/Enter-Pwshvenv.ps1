@@ -1,14 +1,16 @@
 # Module-scoped state used by Exit-Pwshvenv to restore the session.
-$script:PwshvenvSnapshot        = $null   # hashtable of env-var values before activation
-$script:PwshvenvActive          = $false  # true while a session is active
-$script:PwshvenvPythonActivated = $false  # true when Activate.ps1 was dot-sourced
+$script:PwshvenvSnapshot         = $null   # hashtable of env-var values before activation
+$script:PwshvenvLocationSnapshot = $null   # working directory path before activation
+$script:PwshvenvActive           = $false  # true while a session is active
+$script:PwshvenvActiveName       = $null   # name of the active virtual environment
+$script:PwshvenvPythonActivated  = $false  # true when Activate.ps1 was dot-sourced
 
 function Enter-Pwshvenv {
     <#
     .SYNOPSIS
         Activates a named Python virtual environment in the current PowerShell session.
     .DESCRIPTION
-        Loads the named profile from <VenvRoot>\<Name>.json, then performs up to three steps
+        Loads the named profile from <VenvRoot>\<Name>.json, then performs up to four steps
         depending on the profile's skip flags and any switch overrides:
 
           1. Python activation  — dot-sources the venv's Activate.ps1 (skipped when
@@ -16,11 +18,13 @@ function Enter-Pwshvenv {
           2. Environment variables — applies key-value pairs from the profile to the current
              process environment (skipped when SkipPowershellInit is true or
              -SkipPowershellInit is passed).
-          3. Post-activate scripts — dot-sources each script listed in PostActivateScripts
+          3. Location change — changes session directory via Set-Location if SetLocation is
+             configured in the profile (also skipped when SkipPowershellInit is in effect).
+          4. Post-activate scripts — dot-sources each script listed in PostActivateScripts
              (also skipped when SkipPowershellInit is in effect).
 
-        Before applying profile environment variables a snapshot of their current values is
-        saved so that Exit-Pwshvenv can restore the original state.
+        Before applying profile environment variables and location changes, a snapshot of
+        their current values is saved so that Exit-Pwshvenv can restore the original state.
 
         Only one venv can be active at a time per session. Calling Enter-Pwshvenv while
         another is active emits a warning and returns without switching.
@@ -31,17 +35,17 @@ function Enter-Pwshvenv {
     .PARAMETER SkipPythonActivation
         When specified, Activate.ps1 is NOT dot-sourced. Overrides the profile setting.
     .PARAMETER SkipPowershellInit
-        When specified, environment variables and post-activate scripts are NOT applied.
-        Overrides the profile setting.
+        When specified, environment variables, SetLocation, and post-activate scripts are NOT
+        applied. Overrides the profile setting.
     .EXAMPLE
         Enter-Pwshvenv -Name myapp
         Activates the 'myapp' virtual environment with all steps from the profile.
     .EXAMPLE
         Enter-Pwshvenv -Name myapp -SkipPowershellInit
-        Activates only the Python venv, skipping env vars and post-activate scripts.
+        Activates only the Python venv, skipping env vars, directory changes, and post-activate scripts.
     .EXAMPLE
         Enter-Pwshvenv -Name myapp -SkipPythonActivation
-        Applies env vars and post-activate scripts without activating the Python venv.
+        Applies env vars, directory change, and post-activate scripts without activating the Python venv.
     .NOTES
         Use Exit-Pwshvenv to deactivate the environment and restore the previous session state.
     .LINK
@@ -73,7 +77,7 @@ function Enter-Pwshvenv {
     $doPowershellInit   = -not ($SkipPowershellInit.IsPresent   -or $venvProfile.SkipPowershellInit)
 
     if ($doPythonActivation) {
-        $activateScript = Join-Path $venvProfile.VenvLocation 'Scripts' 'Activate.ps1'
+        $activateScript = Get-VenvExecutablePath -VenvLocation $venvProfile.VenvLocation -ExecutableName 'Activate.ps1'
         if (-not (Test-Path -LiteralPath $activateScript -PathType Leaf)) {
             throw "Activate.ps1 not found at '$activateScript'. Has the venv been created? Run New-Pwshvenv first."
         }
@@ -102,11 +106,23 @@ function Enter-Pwshvenv {
             }
         }
 
+        if ($venvProfile.SetLocation) {
+            if (-not (Test-Path -LiteralPath $venvProfile.SetLocation -PathType Container)) {
+                Write-Warning "SetLocation path not found, skipping directory change: $($venvProfile.SetLocation)"
+            } else {
+                $script:PwshvenvLocationSnapshot = (Get-Location).Path
+                Write-Verbose "Changing location to: $($venvProfile.SetLocation)"
+                Set-Location -LiteralPath $venvProfile.SetLocation
+            }
+        }
+
         Invoke-PostActivateScripts -Scripts $venvProfile.PostActivateScripts
     } else {
         Write-Verbose 'Skipping PowerShell init (SkipPowershellInit is set).'
-        $script:PwshvenvSnapshot = @{}
+        $script:PwshvenvSnapshot         = @{}
+        $script:PwshvenvLocationSnapshot = $null
     }
 
-    $script:PwshvenvActive = $true
+    $script:PwshvenvActive     = $true
+    $script:PwshvenvActiveName = $Name
 }

@@ -1,6 +1,7 @@
 BeforeAll {
     . "$PSScriptRoot\..\Private\Resolve-VenvRoot.ps1"
     . "$PSScriptRoot\..\Private\Get-VenvProfile.ps1"
+    . "$PSScriptRoot\..\Private\Get-VenvExecutablePath.ps1"
     . "$PSScriptRoot\..\Public\Update-Pwshvenv.ps1"
     . "$PSScriptRoot\TestHelpers.ps1"
 }

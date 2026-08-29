@@ -32,6 +32,8 @@ function New-ProfileJson {
         Hashtable.
     .PARAMETER PostActivateScripts
         String array.
+    .PARAMETER SetLocation
+        String.
     #>
     param(
         [string]   $Root,
@@ -40,7 +42,8 @@ function New-ProfileJson {
         [string]   $RequirementsFile,
         [string]   $VenvLocation,
         [hashtable]$EnvironmentVariables,
-        [string[]] $PostActivateScripts
+        [string[]] $PostActivateScripts,
+        [string]   $SetLocation
     )
 
     $obj = [ordered]@{ name = $Name; pythonPath = $PythonPath }
@@ -48,6 +51,7 @@ function New-ProfileJson {
     if ($VenvLocation)         { $obj.venvLocation         = $VenvLocation }
     if ($EnvironmentVariables) { $obj.environmentVariables = $EnvironmentVariables }
     if ($PostActivateScripts)  { $obj.postActivateScripts  = $PostActivateScripts }
+    if ($SetLocation)          { $obj.setLocation          = $SetLocation }
 
     $jsonPath = Join-Path $Root "$Name.json"
     $obj | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $jsonPath -Encoding UTF8

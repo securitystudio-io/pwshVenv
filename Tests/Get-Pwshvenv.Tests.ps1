@@ -58,4 +58,25 @@ Describe 'Get-Pwshvenv' {
             { $results = Get-Pwshvenv -VenvRoot $root } | Should -Not -Throw
         }
     }
+
+    Context 'when -Active is specified' {
+        It 'returns null when no venv is active' {
+            $script:PwshvenvActive = $false
+            $script:PwshvenvActiveName = $null
+            $result = Get-Pwshvenv -Active -VenvRoot $root
+            $result | Should -BeNullOrEmpty
+        }
+
+        It 'returns active profile when a venv is active' {
+            New-ProfileJson -Root $root -Name 'active-app' | Out-Null
+            $script:PwshvenvActive = $true
+            $script:PwshvenvActiveName = 'active-app'
+
+            $result = Get-Pwshvenv -Active -VenvRoot $root
+            $result.Name | Should -Be 'active-app'
+
+            $script:PwshvenvActive = $false
+            $script:PwshvenvActiveName = $null
+        }
+    }
 }

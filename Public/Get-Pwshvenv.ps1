@@ -12,17 +12,23 @@ function Get-Pwshvenv {
     .PARAMETER Name
         Optional. When provided, only the profile whose name matches this value is returned.
         Wildcards are not supported.
+    .PARAMETER Active
+        When specified, returns only the profile currently active in the session, or $null if none is active.
     .PARAMETER VenvRoot
         Directory to search for profile JSON files. Defaults to $env:USERPROFILE\.venv.
     .OUTPUTS
         PSCustomObject with properties: Name, PythonPath, RequirementsFile, VenvLocation,
-        EnvironmentVariables, PostActivateScripts, ProfilePath.
+        EnvironmentVariables, PostActivateScripts, SetLocation, SkipPythonActivation,
+        SkipPowershellInit, ProfilePath.
     .EXAMPLE
         Get-Pwshvenv
         Returns all profiles in the default VenvRoot.
     .EXAMPLE
         Get-Pwshvenv -Name myapp
         Returns only the profile named 'myapp'.
+    .EXAMPLE
+        Get-Pwshvenv -Active
+        Returns the profile of the currently active virtual environment.
     .LINK
         New-Pwshvenv
         Enter-Pwshvenv
@@ -32,10 +38,20 @@ function Get-Pwshvenv {
     param(
         [string] $Name,
 
+        [switch] $Active,
+
         [string] $VenvRoot
     )
 
     $root = Resolve-VenvRoot -VenvRoot $VenvRoot
+
+    if ($Active) {
+        if ($script:PwshvenvActive -and $script:PwshvenvActiveName) {
+            return (Get-VenvProfile -Name $script:PwshvenvActiveName -VenvRoot $root)
+        }
+        Write-Verbose 'No virtual environment is currently active in this session.'
+        return $null
+    }
 
     $jsonFiles = Get-ChildItem -LiteralPath $root -Filter '*.json' -File -ErrorAction SilentlyContinue
 

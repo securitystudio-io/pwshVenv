@@ -9,6 +9,8 @@ function Exit-Pwshvenv {
              function that was injected into the session by Activate.ps1.
           2. Restores any environment variables that were set by Enter-Pwshvenv to the values
              they held before activation.
+          3. Restores the working directory to the location before activation if SetLocation
+             was applied.
 
         If no pwshVenv environment is currently active the command is a no-op and emits a
         verbose message rather than an error.
@@ -46,7 +48,15 @@ function Exit-Pwshvenv {
         }
     }
 
-    $script:PwshvenvSnapshot        = $null
-    $script:PwshvenvActive          = $false
-    $script:PwshvenvPythonActivated = $false
+    # Restore working directory if it was changed during Enter-Pwshvenv.
+    if ($script:PwshvenvLocationSnapshot) {
+        Write-Verbose "Restoring location: $script:PwshvenvLocationSnapshot"
+        Set-Location -LiteralPath $script:PwshvenvLocationSnapshot
+    }
+
+    $script:PwshvenvSnapshot         = $null
+    $script:PwshvenvLocationSnapshot = $null
+    $script:PwshvenvActive           = $false
+    $script:PwshvenvActiveName       = $null
+    $script:PwshvenvPythonActivated  = $false
 }

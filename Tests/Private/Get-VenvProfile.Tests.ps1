@@ -39,6 +39,13 @@ Describe 'Get-VenvProfile' {
             $result.RequirementsFile    | Should -BeNullOrEmpty
             $result.EnvironmentVariables | Should -BeNullOrEmpty
             $result.PostActivateScripts  | Should -BeNullOrEmpty
+            $result.SetLocation          | Should -BeNullOrEmpty
+        }
+
+        It 'deserializes setLocation when present in the profile' {
+            New-ProfileJson -Root $root -Name 'locapp' -SetLocation 'C:\Projects\locapp' | Out-Null
+            $result = Get-VenvProfile -Name 'locapp' -VenvRoot $root
+            $result.SetLocation | Should -Be 'C:\Projects\locapp'
         }
     }
 
