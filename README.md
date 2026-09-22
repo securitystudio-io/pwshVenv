@@ -489,4 +489,4 @@ All public functions must include full comment-based help (`Get-Help New-Pwshven
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+GPL-3.0 — see [LICENSE](LICENSE).
